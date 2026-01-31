@@ -1,48 +1,34 @@
 import streamlit as st
 import datetime
-import time
 import base64
 import os
-import smtplib
-from email.mime.text import MIMEText
+import urllib.parse
 
 def get_base64_image(image_path):
+    """Zakóduje obrázek do base64 pro použití v CSS animaci."""
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
     return None
 
-def odeslat_vysledek_lukasovi(data):
-    """Funkce pro automatické odeslání e-mailu Lukášovi přes SMTP."""
-    try:
-        # Načtení přihlašovacích údajů ze Streamlit Secrets
-        odesilatel_email = st.secrets["email_user"]
-        odesilatel_heslo = st.secrets["email_password"]
-        prijemce = "lukasgranzer@seznam.cz"
+def vygeneruj_whatsapp_odkaz(data):
+    """Vytvoří odkaz pro přímé odeslání dat na WhatsApp Lukášovi."""
+    # Vaše zadané číslo v mezinárodním formátu
+    moje_cislo = "420728898135" 
+    
+    text_zpravy = f"""*🐧 Mystery Výlet naplánován!*
+    
+📍 *Lokalita:* {data['region']}, {data['country']}
+👣 *Styl:* {', '.join(data['trip_types'])}
+📏 *Vzdálenost:* {data['duration']} km
+📅 *Termín:* {data['hike_date']}
+✉️ *Poznámka:* {data['notes']}
 
-        zprava_text = f"""
-        Ahoj Lukáši, Bob naplánoval nový výlet! ❤️
-        
-        🌍 Lokalita: {data['region']}, {data['country']}
-        👣 Styl výletu: {', '.join(data['trip_types'])}
-        📏 Vzdálenost: {data['duration']} km
-        📅 Termín: {data['hike_date']}
-        ✉️ Poznámka: {data['notes']}
-        """
-
-        msg = MIMEText(zprava_text)
-        msg['Subject'] = '🐧 Nové Mystery Dobrodružství!'
-        msg['From'] = odesilatel_email
-        msg['To'] = prijemce
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(odesilatel_email, odesilatel_heslo)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        # Pokud nejsou nastaveny Secrets nebo dojde k chybě, aplikace nespadne
-        print(f"Chyba při odesílání e-mailu: {e}")
-        return False
+_Těším se na naše dobrodružství! ❤️_"""
+    
+    # Kódování textu pro URL (nahrazení speciálních znaků)
+    encoded_text = urllib.parse.quote(text_zpravy)
+    return f"https://wa.me/{moje_cislo}?text={encoded_text}"
 
 def mystery_hike_app():
     # 1. KONFIGURACE STRÁNKY
@@ -53,8 +39,8 @@ def mystery_hike_app():
     )
 
     # 2. MINI GALERIE V ZÁHLAVÍ (01-04)
-    col_img1, col_img2, col_img3, col_img4 = st.columns(4)
-    for col, img in zip([col_img1, col_img2, col_img3, col_img4], ["01.png", "02.png", "03.png", "04.png"]):
+    col1, col2, col3, col4 = st.columns(4)
+    for col, img in zip([col1, col2, col3, col4], ["01.png", "02.png", "03.png", "04.png"]):
         with col:
             try: st.image(img, use_container_width=True)
             except: st.write("🖼️")
@@ -62,7 +48,6 @@ def mystery_hike_app():
     # 3. HLAVIČKA A ÚVODNÍ TEXT
     st.title("🐧 Naše Mystery Dobrodružství")
     st.subheader("Ahoj milovaný Bobe! ❤️")
-    
     st.markdown("##### Tohle je mnou naprogramovaný web pro soukromé plánování našich výletů.")
     
     st.markdown(f"""
@@ -93,30 +78,16 @@ def mystery_hike_app():
 
             if submit_button:
                 st.session_state.submitted = True
-                
-                # Příprava dat pro zobrazení a e-mail
-                data_pro_vystup = {
-                    "country": country, 
-                    "region": region, 
-                    "trip_types": trip_types, 
-                    "hike_date": hike_date, 
-                    "duration": duration, 
-                    "notes": notes if notes else 'Žádná'
-                }
-                
-                # Automatické odeslání e-mailu
-                data_pro_mail = data_pro_vystup.copy()
-                data_pro_mail['hike_date'] = hike_date.strftime('%d. %m. %Y')
-                odeslat_vysledek_lukasovi(data_pro_mail)
-                
-                # Uložení do session_state
-                st.session_state.update(data_pro_vystup)
+                st.session_state.update({
+                    "country": country, "region": region, "trip_types": trip_types, 
+                    "hike_date": hike_date, "duration": duration, "notes": notes if notes else "Žádná"
+                })
                 st.rerun()
 
-    # 5. AKCE PO ODESLÁNÍ (NEKONEČNÁ ANIMACE 06.png)
+    # 5. AKCE PO ODESLÁNÍ (ANIMACE A WHATSAPP)
     if st.session_state.submitted:
+        # Nekonečná animace létajících velkých obrázků 06.png
         img_base64 = get_base64_image("06.png")
-        
         if img_base64:
             animation_code = f"""
             <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;">
@@ -138,27 +109,34 @@ def mystery_hike_app():
             """
             st.markdown(animation_code, unsafe_allow_html=True)
         
-        st.success(f"Hotovo! Moje nejdůležitější databáze (srdíčko) právě přijala tvá přání.")
+        st.success("Hotovo! Moje nejdůležitější databáze (srdíčko) právě přijala tvá přání.")
 
-        # Zobrazení fotky 05
+        # VELKÉ WHATSAPP TLAČÍTKO PRO ODESLÁNÍ
+        wa_link = vygeneruj_whatsapp_odkaz({
+            "country": st.session_state.country,
+            "region": st.session_state.region,
+            "trip_types": st.session_state.trip_types,
+            "hike_date": st.session_state.hike_date.strftime('%d. %m. %Y'),
+            "duration": st.session_state.duration,
+            "notes": st.session_state.notes
+        })
+        
+        st.markdown(f"""
+            <a href="{wa_link}" target="_blank" style="text-decoration: none;">
+                <div style="background-color: #25D366; color: white; padding: 25px; text-align: center; border-radius: 20px; font-weight: bold; font-size: 24px; margin: 25px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid #128C7E;">
+                    KLIKNI SEM A POŠLI PLÁN LUKÁŠOVI 🟢
+                </div>
+            </a>
+        """, unsafe_allow_html=True)
+
         st.markdown("---")
+        # Zobrazení fotky 05
         try: 
             st.image("05.png", caption="Tvoje překvapení se už peče! ❤️", use_container_width=True)
         except: 
             st.info("📸 (Zde je fotka 05)")
 
-        # Protokol pro Lukáše
-        st.subheader("Recept na uvaření výletu pro Lukáše:")
-        summary = f"""
-        **ZADAVATEL:** Vendulka (Bob)
-        **LOKALITA:** {st.session_state.region}, {st.session_state.country}
-        **STYL VÝLETU:** {', '.join(st.session_state.trip_types)}
-        **MAX. VZDÁLENOST:** {st.session_state.duration} km
-        **TERMÍN:** {st.session_state.hike_date.strftime('%d. %m. %Y')}
-        **POZNÁMKA:** {st.session_state.notes}
-        """
-        st.code(summary)
-        
+        # Tlačítko pro nový pokus
         if st.button("Zkusit naplánovat další ťapkání"):
             st.session_state.submitted = False
             st.rerun()
