@@ -100,7 +100,7 @@ def mystery_hike_app():
                 }}
                 .bob-photo {{
                     position: absolute;
-                    width: 300px; 
+                    width: 100px; 
                     animation: floatUp 5s linear infinite;
                 }}
                 </style>
@@ -143,5 +143,6 @@ def mystery_hike_app():
 
 if __name__ == "__main__":
     mystery_hike_app()
+
 
 
