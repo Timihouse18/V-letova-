@@ -3,12 +3,46 @@ import datetime
 import time
 import base64
 import os
+import smtplib
+from email.mime.text import MIMEText
 
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
     return None
+
+def odeslat_vysledek_lukasovi(data):
+    """Funkce pro automatické odeslání e-mailu Lukášovi přes SMTP."""
+    try:
+        # Načtení přihlašovacích údajů ze Streamlit Secrets
+        odesilatel_email = st.secrets["email_user"]
+        odesilatel_heslo = st.secrets["email_password"]
+        prijemce = "lukasgranzer@seznam.cz"
+
+        zprava_text = f"""
+        Ahoj Lukáši, Bob naplánoval nový výlet! ❤️
+        
+        🌍 Lokalita: {data['region']}, {data['country']}
+        👣 Styl výletu: {', '.join(data['trip_types'])}
+        📏 Vzdálenost: {data['duration']} km
+        📅 Termín: {data['hike_date']}
+        ✉️ Poznámka: {data['notes']}
+        """
+
+        msg = MIMEText(zprava_text)
+        msg['Subject'] = '🐧 Nové Mystery Dobrodružství!'
+        msg['From'] = odesilatel_email
+        msg['To'] = prijemce
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(odesilatel_email, odesilatel_heslo)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        # Pokud nejsou nastaveny Secrets nebo dojde k chybě, aplikace nespadne
+        print(f"Chyba při odesílání e-mailu: {e}")
+        return False
 
 def mystery_hike_app():
     # 1. KONFIGURACE STRÁNKY
@@ -29,7 +63,6 @@ def mystery_hike_app():
     st.title("🐧 Naše Mystery Dobrodružství")
     st.subheader("Ahoj milovaný Bobe! ❤️")
     
-    # Tvůj nový autorský popis
     st.markdown("##### Tohle je mnou naprogramovaný web pro soukromé plánování našich výletů.")
     
     st.markdown(f"""
@@ -60,10 +93,24 @@ def mystery_hike_app():
 
             if submit_button:
                 st.session_state.submitted = True
-                st.session_state.update({
-                    "country": country, "region": region, "trip_types": trip_types, 
-                    "hike_date": hike_date, "duration": duration, "notes": notes
-                })
+                
+                # Příprava dat pro zobrazení a e-mail
+                data_pro_vystup = {
+                    "country": country, 
+                    "region": region, 
+                    "trip_types": trip_types, 
+                    "hike_date": hike_date, 
+                    "duration": duration, 
+                    "notes": notes if notes else 'Žádná'
+                }
+                
+                # Automatické odeslání e-mailu
+                data_pro_mail = data_pro_vystup.copy()
+                data_pro_mail['hike_date'] = hike_date.strftime('%d. %m. %Y')
+                odeslat_vysledek_lukasovi(data_pro_mail)
+                
+                # Uložení do session_state
+                st.session_state.update(data_pro_vystup)
                 st.rerun()
 
     # 5. AKCE PO ODESLÁNÍ (NEKONEČNÁ ANIMACE 06.png)
@@ -71,9 +118,8 @@ def mystery_hike_app():
         img_base64 = get_base64_image("06.png")
         
         if img_base64:
-            # CSS pro nekonečné létání větších obrázků 06.png
             animation_code = f"""
-            <div style="position: fixed; top: 0; left: 0; width: 250vw; height: 250vh; pointer-events: none; z-index: 9999; overflow: hidden;">
+            <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;">
                 <style>
                 @keyframes floatUp {{
                     0% {{ transform: translateY(110vh) rotate(0deg); opacity: 0; }}
@@ -83,8 +129,8 @@ def mystery_hike_app():
                 }}
                 .bob-photo {{
                     position: absolute;
-                    width: 300px; /* Zvětšeno z 60px na 90px */
-                    animation: floatUp 5s linear infinite; /* Nastaveno na infinite pro nekonečný běh */
+                    width: 300px; 
+                    animation: floatUp 5s linear infinite;
                 }}
                 </style>
                 {''.join([f'<img src="data:image/png;base64,{img_base64}" class="bob-photo" style="left: {i*12}%; animation-delay: {i*0.8}s;">' for i in range(8)])}
@@ -109,7 +155,7 @@ def mystery_hike_app():
         **STYL VÝLETU:** {', '.join(st.session_state.trip_types)}
         **MAX. VZDÁLENOST:** {st.session_state.duration} km
         **TERMÍN:** {st.session_state.hike_date.strftime('%d. %m. %Y')}
-        **POZNÁMKA:** {st.session_state.notes if st.session_state.notes else 'Žádná'}
+        **POZNÁMKA:** {st.session_state.notes}
         """
         st.code(summary)
         
