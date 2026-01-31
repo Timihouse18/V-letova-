@@ -37,7 +37,8 @@ def mystery_hike_app():
         layout="centered", 
         page_icon="🐧"
     )
-    st.title("🐧 Naše Mystery Dobrodružství")
+    st.title("🐧 Naše Mystery Dobrodružství, slajdni dolů pro výlet!")
+    
     # 2. MINI GALERIE V ZÁHLAVÍ (01-04)
     col1, col2, col3, col4 = st.columns(4)
     for col, img in zip([col1, col2, col3, col4], ["01.png", "02.png", "03.png", "04.png"]):
@@ -46,7 +47,6 @@ def mystery_hike_app():
             except: st.write("🖼️")
 
     # 3. HLAVIČKA A ÚVODNÍ TEXT
-    st.title("🐧 Naše Mystery Dobrodružství")
     st.subheader("Ahoj milovaný Bobe! ❤️")
     st.markdown("##### Tohle je mnou naprogramovaný web pro soukromé plánování našich výletů.")
     
@@ -143,4 +143,5 @@ def mystery_hike_app():
 
 if __name__ == "__main__":
     mystery_hike_app()
+
 
